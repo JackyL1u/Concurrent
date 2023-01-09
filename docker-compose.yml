@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+    redis-master:
+        image: redis:3
+        command: redis-server
+    redis-slave-1:
+        image: redis:3
+        command: redis-server --slaveof redis-master 6379
+        links:
+            - redis-master
+    redis-slave-2:
+        image: redis:3
+        command: redis-server --slaveof redis-master 6379
+        links:
+            - redis-master
+    sentinel-1:
+        build: sentinel
+        depends_on:
+            - redis-master
+            - redis-slave-1
+            - redis-slave-2
+    sentinel-2:
+        build: sentinel
+        depends_on:
+            - redis-master
+            - redis-slave-1
+            - redis-slave-2
+    sentinel-3:
+        build: sentinel
+        depends_on:
+            - redis-master
+            - redis-slave-1
+            - redis-slave-2
+    app:
+        build: app
+        ports:
+            - "5000:5000"
+        depends_on:
+            - redis-master
+            - redis-slave-1
+            - redis-slave-2
+            - sentinel-1
+            - sentinel-2
+            - sentinel-3
+        command: /bin/bash -c "echo 'Redis loading...' && python app.py"
+    changestreams:
+        build: changestreams
+        command: python changestream.py
+        depends_on:
+            - redis-master
+            - app
+        env_file:
+            - .env
